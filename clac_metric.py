@@ -19,10 +19,7 @@ def _to_numpy(x):
 
 
 def _sanitize_scores(scores, clip_scores=True):
-    """
-    Replace nan/inf and optionally clip scores into [0, 1].
-    NOTE: clipping is only appropriate when scores are probabilities.
-    """
+
     scores = _to_numpy(scores).astype(float)
     scores = np.nan_to_num(scores, nan=0.0, posinf=1.0, neginf=0.0)
     if clip_scores:
@@ -31,9 +28,7 @@ def _sanitize_scores(scores, clip_scores=True):
 
 
 def _safe_auc_aupr(y_true, y_score):
-    """
-    Robust AUC/AUPR computation. If y_true is single-class, return 0.0 and fallback curves.
-    """
+
     # Defaults (diagonal ROC, simple PR)
     auc = 0.0
     aupr = 0.0
@@ -44,25 +39,19 @@ def _safe_auc_aupr(y_true, y_score):
         auc = roc_auc_score(y_true, y_score)
         fpr, tpr, _ = roc_curve(y_true, y_score)
     except Exception as e:
-        print(f"⚠️  Warning: AUC calculation failed: {e}")
+        print(f"Warning: AUC calculation failed: {e}")
 
     try:
         aupr = average_precision_score(y_true, y_score)
         precision_list, recall_list, _ = precision_recall_curve(y_true, y_score)
     except Exception as e:
-        print(f"⚠️  Warning: AUPR calculation failed: {e}")
+        print(f"Warning: AUPR calculation failed: {e}")
 
     return auc, aupr, fpr, tpr, precision_list, recall_list
 
 
 def get_metric(real_labels, predict_scores, threshold=0.5, clip_scores=True):
-    """
-    Compute ROC/PR curve points + common binary classification metrics.
 
-    Returns:
-        tpr, fpr, recall_list, precision_list, metrics
-        where metrics = (auc, aupr, accuracy, f1, recall, precision, specificity)
-    """
     real_labels = _to_numpy(real_labels).astype(int)
     predict_scores = _sanitize_scores(predict_scores, clip_scores=clip_scores)
 
@@ -81,7 +70,7 @@ def get_metric(real_labels, predict_scores, threshold=0.5, clip_scores=True):
         tn, fp, fn, tp = confusion_matrix(real_labels, predict_labels, labels=[0, 1]).ravel()
         specificity = tn / (tn + fp) if (tn + fp) > 0 else 0.0
     except Exception as e:
-        print(f"⚠️  Warning: Specificity calculation failed: {e}")
+        print(f"Warning: Specificity calculation failed: {e}")
         specificity = 0.0
 
     metrics = (auc, aupr, accuracy, f1, recall, precision, specificity)
@@ -122,17 +111,7 @@ def get_metric_best_threshold(
     thresholds=None,
     clip_scores=True,
 ):
-    """
-    Search best threshold on given metric.
 
-    metric:
-      - 'f1': grid search thresholds, maximize F1
-      - 'youden': choose threshold that maximizes (tpr - fpr) on ROC curve
-
-    Returns:
-        metrics, best_threshold
-        where metrics = (auc, aupr, accuracy, f1, recall, precision, specificity)
-    """
     y_true = _to_numpy(real_labels).astype(int)
     y_score = _sanitize_scores(predict_scores, clip_scores=clip_scores)
 
@@ -149,7 +128,7 @@ def get_metric_best_threshold(
             if clip_scores:
                 best_threshold = float(np.clip(best_threshold, 0.0, 1.0))
         except Exception as e:
-            print(f"⚠️  Warning: Youden threshold search failed: {e}")
+            print(f"Warning: Youden threshold search failed: {e}")
             best_threshold = 0.5
 
     elif metric == "f1":
@@ -178,7 +157,7 @@ def get_metric_best_threshold(
         tn, fp, fn, tp = confusion_matrix(y_true, pred_labels, labels=[0, 1]).ravel()
         specificity = tn / (tn + fp) if (tn + fp) > 0 else 0.0
     except Exception as e:
-        print(f"⚠️  Warning: Specificity calculation failed: {e}")
+        print(f"Warning: Specificity calculation failed: {e}")
         specificity = 0.0
 
     metrics = (auc, aupr, accuracy, f1, recall, precision, specificity)
